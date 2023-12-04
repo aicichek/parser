@@ -1,6 +1,7 @@
 ﻿import requests
-
 import pandas as pd
+from bs4 import BeautifulSoup
+from proxie import login, password
 import time
 
 
@@ -32,6 +33,11 @@ def get_basket(short_id):
     else:
         return '13'
 
+proxies = {
+    # 'https': 'http://proxy_ip:proxy_port'
+    'https': f'http://{login}:{password}@46.3.197.199:9734'
+}
+
 # Чтение CSV файла
 df = pd.read_csv('input.csv')
 result_df = pd.DataFrame(columns=['articul', 'imt_name', 'description', 'photo_url'])
@@ -44,13 +50,13 @@ for index, row in df.iterrows():
     vol = f'vol{short_id}'       # Получение vol
     basket = get_basket(short_id)    # Получение номера basket
     url = f'https://basket-{basket}.wb.ru/{vol}/{part}/{articul}/info/ru/card.json'
-    print(url)
+    # print(url)
     # Выполнение запроса
-    response = requests.get(url)
+    response = requests.get(url = url, proxies=proxies)
     
     if response.status_code == 200:
         data = response.json()
-        
+        # print(data)
         # Извлечение необходимых данных
         imt_name = data.get('imt_name', 'Нет данных')
         description = data.get('description', 'Нет данных')
@@ -63,7 +69,7 @@ for index, row in df.iterrows():
     else:
         print(f'Ошибка при выполнении запроса для артикула {articul}. Статус код: {response.status_code}')
     
-    delay_seconds = 15
+    delay_seconds = 3
     time.sleep(delay_seconds)
 
 # Запись результатов в output.csv
