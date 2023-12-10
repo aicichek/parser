@@ -1,8 +1,8 @@
 ﻿import requests
 import pandas as pd
-from bs4 import BeautifulSoup
-from proxie import login, password
+from proxie import *
 import time
+from itertools import cycle
 
 
 def get_basket(short_id):
@@ -33,44 +33,66 @@ def get_basket(short_id):
     else:
         return '13'
 
-proxies = {
-    # 'https': 'http://proxy_ip:proxy_port'
-    'https': f'http://{login}:{password}@46.3.197.199:9734'
-}
+
+proxies_list = [
+    {'https': f'http://{login1}:{password1}@{purl1}'},
+    {'https': f'http://{login2}:{password2}@{purl2}'},
+    {'https': f'http://{login3}:{password3}@{purl3}'},
+    # {'https': f'http://{login4}:{password4}@{purl4}'}
+]
+proxies_cycle = cycle(proxies_list)
 
 # Чтение CSV файла
-df = pd.read_csv('input.csv')
-result_df = pd.DataFrame(columns=['articul', 'imt_name', 'description', 'photo_url'])
+df = pd.read_csv('result_wb_resp.csv')
+result_df = pd.DataFrame(columns=['TovCode','Nomenklatura','MarketPlace','articul MP', 'Название','Количество отзывов','Рейтинг', 'Ссылка на фото', 'Описание'])
 
 # Пройдемся по каждой строке и выполним запрос
 for index, row in df.iterrows():
-    articul = row['articul']
+    print(index)
+    articul = row['M_Articul']
+    TovCode = row['TovCode']
+    Nomenklatura = row['Naimenov']
     short_id = int(articul) // 100000  # Получение _short_id
     part = f'part{(articul) // 1000}'     # Получение part
     vol = f'vol{short_id}'       # Получение vol
     basket = get_basket(short_id)    # Получение номера basket
-    url = f'https://basket-{basket}.wb.ru/{vol}/{part}/{articul}/info/ru/card.json'
-    # print(url)
-    # Выполнение запроса
-    response = requests.get(url = url, proxies=proxies)
     
-    if response.status_code == 200:
+    
+    current_proxy = next(proxies_cycle)
+
+    # Выполнение запроса
+    try:
+        url = f'https://basket-{basket}.wb.ru/{vol}/{part}/{articul}/info/ru/card.json'
+        response = requests.get(url = url, proxies=current_proxy)
+        url2 = f'https://card.wb.ru/cards/v1/detail?appType=1&curr=rub&dest=-1257786&spp=27&nm={articul}'
+        response2 = requests.get(url = url2, proxies=current_proxy)
+    except Exception as e:
+        print(e)
+
+    if response.status_code == 200 & response2.status_code == 200:
         data = response.json()
-        # print(data)
         # Извлечение необходимых данных
         imt_name = data.get('imt_name', 'Нет данных')
-        description = data.get('description', 'Нет данных')
-        
+        description = data.get('description', 'Нет данных').strip().replace('\n', ' ').replace('  ',' ')
+
+        data = response2.json()
+        try:
+            product_data = data.get('data', {}).get('products', [])[0]
+            rating = product_data.get('reviewRating', 'Нет данных')
+            reviews_count = product_data.get('feedbacks', 'Нет данных')
+        except:
+            rating = 0
+            reviews_count = 0
         # Создание ссылки на фото товара
         photo_url = f'https://basket-{basket}.wb.ru/{vol}/{part}/{articul}/images/big/1.jpg'
         
         # Добавление данных в result_df
-        result_df = result_df._append({'articul': articul, 'imt_name': imt_name, 'description': description, 'photo_url': photo_url}, ignore_index=True)
+        result_df = result_df._append({'TovCode': TovCode,'Nomenklatura': Nomenklatura,'MarketPlace': 'wildberries','articul MP': articul, 'Название': imt_name, 'Описание': description, 'Ссылка на фото': photo_url, 'Рейтинг': rating,'Количество отзывов': reviews_count,}, ignore_index=True)
     else:
         print(f'Ошибка при выполнении запроса для артикула {articul}. Статус код: {response.status_code}')
     
-    delay_seconds = 3
+    delay_seconds = 2
     time.sleep(delay_seconds)
 
 # Запись результатов в output.csv
-result_df.to_csv('output.csv', index=False)
+result_df.to_csv('output.csv', index=False, encoding='utf-8')
