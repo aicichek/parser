@@ -1,4 +1,4 @@
-# Пасереры OZON, Яндекс маркет, wildberries
+# Парсеры OZON, Яндекс маркет, wildberries
 
 # Ozon
 Берет ссылки на товары из файла products.csv
