@@ -1,10 +1,11 @@
-﻿import pandas as pd
+import pandas as pd
 from bs4 import BeautifulSoup
 import time
 from selenium import webdriver
 import seleniumbase as sb 
 from selenium.webdriver.chrome.options import Options
 from selenium_stealth import stealth
+
 # from proxie import login, password, url
 
 def init_driver():
@@ -51,26 +52,32 @@ def parse_product_page(driver, url):
         if description_div:
             description_text = ' '.join(span.get_text(strip=True) for span in description_div.find_all('span'))
 
-        # Извлекаем остальные данные 
-        title = soup.find('h1', class_='n3l').text.strip()
-        reviews_div = soup.find('a', class_='a2430-a4 a2430-b0')
-        try:
-            reviews_count = int(reviews_div.text.split()[0])
-        except:
+        title = soup.select_one('div[data-widget="webProductHeading"] h1').text.strip()
+        web_review_elements = soup.find_all(attrs={"data-widget": "webReviewProductScore"})
+        res = str(web_review_elements)
+        end_index = res.find("отзыв")
+        result_text = res[0:end_index].strip()
+        if "стави" in result_text:
             reviews_count = 0
-        rating_div = soup.find('div', class_='rr1')
-        if rating_div:
-            rating_span = rating_div.find('span')
-            rating_text = rating_span.text.strip() if rating_span else ''
-            rating_parts = rating_text.split('/')
-            if len(rating_parts) == 2:
-                rating = float(rating_parts[0].strip())
-            else:
-                rating = 0.0
         else:
-            rating = 0.0
-        img_div = soup.find('div', class_='m7j jm8')
-        img_src = img_div.find('img')['src'] if img_div else None
+            start_index = result_text.rfind(">")
+            reviews_count = result_text[start_index+1:].strip()
+
+        end_index = res.find("""%""")
+        result_text = res[0:end_index].strip()
+        start_index = result_text.rfind(""":""")
+        rating = result_text[start_index+1:].strip()
+        rating = float(rating)
+        rating=rating/20
+
+
+        web_gallery_elements = soup.find_all(attrs={"data-widget": "webGallery"})
+        img_src = " "
+        for web_gallery_element in web_gallery_elements:
+            img_elements = web_gallery_element.find_all('img')
+
+            if img_elements:
+                img_src = img_elements[0]['src']
 
         product_data = {
             'Название': title,
@@ -89,7 +96,7 @@ def parse_product_page(driver, url):
 
 def main():
     input_csv_path = 'products.csv'
-    output_csv_path = 'результат.csv'
+    output_csv_path = 'ozon result.csv'
 
     # Инициализируем веб-драйвер
     driver = init_driver()
