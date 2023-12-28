@@ -63,9 +63,10 @@ def parse_product_page(driver, url):
         soup = BeautifulSoup(html, 'lxml')
 
         # Извлекаем описание
-        description_tag = soup.find('div', class_='product-description').find('div', class_='text-block')
-        description = description_tag.get_text(strip=True) if  description_tag else " "
-        # description = " "
+        try:
+            description_tag = soup.find('div', class_='product-description').find('div', class_='text-block')
+            description = description_tag.get_text(strip=True) if  description_tag else " "
+        except: description = " "
 
         title = soup.find('h1', class_='pdp-header__title').get_text(strip=True)
 
