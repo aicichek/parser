@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 from bs4 import BeautifulSoup
 import time
 from selenium import webdriver
@@ -18,7 +18,7 @@ proxies_list = [
     {'http': f'http://{login3}:{password3}@{purl3}'},
     {'http': f'http://{login4}:{password4}@{purl4}'}
 ]
-
+refresh_counter = 0
 def init_driver():
     driver = sb.Driver(browser='chrome', headless=False, uc=True, multi_proxy=proxies_list)
 
@@ -52,11 +52,11 @@ def parse_product_page(driver, url):
             search_input.send_keys(char)
             time.sleep(0.2)  # Задержка в 0.2 секунды между символами (может потребоваться регулировка)
         search_input.send_keys(Keys.RETURN)
+        time.sleep(5) 
 
-
+        search_input.send_keys(Keys.F5)
         time.sleep(2)  # Подождем некоторое время для полной загрузки страницы
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(5) 
 
         # Получим HTML-код страницы
         html = driver.page_source
@@ -67,6 +67,7 @@ def parse_product_page(driver, url):
             description_tag = soup.find('div', class_='product-description').find('div', class_='text-block')
             description = description_tag.get_text(strip=True) if  description_tag else " "
         except: description = " "
+        # description = " "
 
         title = soup.find('h1', class_='pdp-header__title').get_text(strip=True)
 
@@ -113,12 +114,16 @@ def main():
     result_df.insert(1, 'Nomenklatura', '')
     result_df.insert(2, 'MarketPlace', 'MegaMarket')
     result_df.insert(3, 'articul MP', products_df['Link'].apply(lambda x: x.rsplit('-', 1)[-1].split('&')[0]))
-    
+    refresh_counter = 0
     # Продем по каждой строке в исходном DataFrame
     for index, row in products_df.iterrows():
         # driver = init_driver()
 
         product_url = row['Link']
+        if refresh_counter == 100:
+            driver.refresh()
+            refresh_counter = 0
+        else: refresh_counter += 1
         product_data = parse_product_page(driver, product_url)
 
         # Если товар не найден, пропустим его
